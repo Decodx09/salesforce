@@ -1,0 +1,52 @@
+name: PR Validation (Scratch Org)
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      SCRATCH_ORG_ALIAS: ci-scratch-${{ github.run_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Salesforce CLI
+        run: |
+          npm install -g @salesforce/cli
+          sf --version
+
+      - name: Authenticate Dev Hub
+        env:
+          SFDX_AUTH_URL: ${{ secrets.SFDX_AUTH_URL_DEVHUB }}
+        run: |
+          echo "$SFDX_AUTH_URL" > ./devhub-auth.txt
+          sf org login sfdx-url --sfdx-url-file ./devhub-auth.txt --alias devhub --set-default-dev-hub
+          rm -f ./devhub-auth.txt
+
+      - name: Create scratch org
+        run: |
+          sf org create scratch \
+            --definition-file config/project-scratch-def.json \
+            --alias "$SCRATCH_ORG_ALIAS" \
+            --set-default \
+            --duration-days 1 \
+            --wait 10
+
+      - name: Push source
+        run: sf project deploy start --target-org "$SCRATCH_ORG_ALIAS" --wait 30
+
+      - name: Run Apex tests
+        run: |
+          sf apex run test \
+            --target-org "$SCRATCH_ORG_ALIAS" \
+            --code-coverage \
+            --result-format human \
+            --wait 20 \
+            --test-level RunLocalTests
+
+      - name: Delete scratch org
+        if: always()
+        run: sf org delete scratch --target-org "$SCRATCH_ORG_ALIAS" --no-prompt || true

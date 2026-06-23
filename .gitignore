@@ -1,0 +1,20 @@
+# Salesforce
+.sfdx/
+.sf/
+.localdevserver/
+deploy-options.json
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# Node (for tooling like prettier-plugin-apex if added later)
+node_modules/
